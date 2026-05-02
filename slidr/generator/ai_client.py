@@ -9,24 +9,34 @@ from slidr.config import OLLAMA_BASE_URL, OLLAMA_MODEL
 class AIClient:
     """Client for interacting with Ollama AI API"""
 
-    def __init__(self, model: str = OLLAMA_MODEL, base_url: str = OLLAMA_BASE_URL):
+    def __init__(self, model: str = "llama3.2:3b", base_url: str = OLLAMA_BASE_URL):
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.api_endpoint = f"{self.base_url}/api/generate"
+        self.available_model = self._find_text_model()
 
-    def is_available(self) -> bool:
-        """Check if Ollama is running and model is available"""
+    def _find_text_model(self) -> str:
+        """Find a text-only model"""
         try:
-            response = requests.get(
-                f"{self.base_url}/api/tags",
-                timeout=5
-            )
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 models = response.json().get("models", [])
-                model_names = [m.get("name", "").split(":")[0] for m in models]
-                return any(self.model.split(":")[0] in name for name in model_names)
-            return False
-        except requests.exceptions.RequestException:
+                for m in models:
+                    name = m.get("name", "")
+                    if name and "vision" not in name.lower():
+                        return name.split(":")[0] + ":3b"
+                if models:
+                    return models[0].get("name", "llama3.2:3b")
+            return "llama3.2:3b"
+        except:
+            return "llama3.2:3b"
+
+    def is_available(self) -> bool:
+        """Check if Ollama is running and a model is available"""
+        try:
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
+            return response.status_code == 200 and len(response.json().get("models", [])) > 0
+        except:
             return False
 
     def generate_slides(self, topic: str, num_slides: int = 5) -> List[Dict[str, Any]]:
@@ -74,8 +84,10 @@ Return only the JSON, no other text."""
 
     def _generate(self, prompt: str, max_tokens: int = 2048) -> str:
         """Generate text using Ollama API"""
+        model_to_use = getattr(self, 'available_model', self.model)
+        
         payload = {
-            "model": self.model,
+            "model": model_to_use,
             "prompt": prompt,
             "stream": False,
             "options": {

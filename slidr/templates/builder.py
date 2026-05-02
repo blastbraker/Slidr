@@ -1,25 +1,25 @@
-"""Template builder for creating slide themes"""
+"""Template builder for creating professional slide themes"""
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE
 from typing import List, Dict, Any, Optional
 from slidr.config import TEMPLATES
 import os
 
 
 class TemplateBuilder:
-    """Build presentation templates with different themes"""
+    """Simple but professional templates"""
 
     def __init__(self, theme: str = "minimal"):
         self.theme = theme
         self.theme_config = TEMPLATES.get(theme, TEMPLATES["minimal"])
 
     def create_presentation(self, slides: List[Dict[str, Any]], title: str) -> Presentation:
-        """Create a new presentation with the given slides"""
         prs = Presentation()
-        prs.slide_width = Inches(10)
+        prs.slide_width = Inches(13.333)
         prs.slide_height = Inches(7.5)
 
         title_slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -31,74 +31,7 @@ class TemplateBuilder:
 
         return prs
 
-    def _apply_title_slide(self, slide, title: str):
-        """Apply title slide styling"""
-        shapes = slide.shapes
-        title_box = shapes.add_textbox(Inches(1), Inches(2.5), Inches(8), Inches(1.5))
-        tf = title_box.text_frame
-        p = tf.paragraphs[0]
-        p.text = title
-        p.font.size = Pt(44)
-        p.font.bold = True
-        p.alignment = PP_ALIGN.CENTER
-
-        config = self.theme_config
-        if config["primary_color"] == "FFFFFF":
-            p.font.color.rgb = RGBColor(0, 0, 0)
-        else:
-            p.font.color.rgb = RGBColor(255, 255, 255)
-
-        background = shapes.add_shape(1, Inches(0), Inches(0), Inches(10), Inches(7.5))
-        fill = background.fill
-        fill.solid()
-        fill.fore_color.rgb = self._hex_to_rgb(config["primary_color"])
-        background.line.fill.background()
-
-    def _apply_content_slide(self, slide, data: Dict[str, Any], index: int):
-        """Apply content slide styling"""
-        shapes = slide.shapes
-
-        title_box = shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
-        tf = title_box.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = data.get("title", f"Slide {index + 1}")
-        p.font.size = Pt(32)
-        p.font.bold = True
-
-        config = self.theme_config
-        if config["primary_color"] == "FFFFFF":
-            p.font.color.rgb = RGBColor(0, 0, 0)
-        else:
-            p.font.color.rgb = RGBColor(255, 255, 255)
-
-        bullet_box = shapes.add_textbox(Inches(0.7), Inches(1.3), Inches(8.5), Inches(5))
-        tf = bullet_box.text_frame
-
-        bullets = data.get("bullets", [])
-        for i, bullet in enumerate(bullets):
-            if i == 0:
-                p = tf.paragraphs[0]
-            else:
-                p = tf.add_paragraph()
-            p.text = bullet
-            p.font.size = Pt(20)
-            p.level = 0
-
-            if config["primary_color"] == "FFFFFF":
-                p.font.color.rgb = RGBColor(0, 0, 0)
-            else:
-                p.font.color.rgb = RGBColor(200, 200, 200)
-
-        if config.get("accent_color"):
-            accent_bar = shapes.add_shape(1, Inches(0), Inches(0), Inches(0.15), Inches(7.5))
-            fill = accent_bar.fill
-            fill.solid()
-            fill.fore_color.rgb = self._hex_to_rgb(config["accent_color"])
-            accent_bar.line.fill.background()
-
-    def _hex_to_rgb(self, hex_color: str):
-        """Convert hex color to RGB"""
+    def _hex_to_rgb(self, hex_color: str) -> RGBColor:
         hex_color = hex_color.lstrip("#")
         return RGBColor(
             int(hex_color[0:2], 16),
@@ -106,11 +39,64 @@ class TemplateBuilder:
             int(hex_color[4:6], 16)
         )
 
-    def load_template(self, template_path: str) -> Presentation:
-        """Load a custom PPTX as template"""
-        if not os.path.exists(template_path):
-            raise FileNotFoundError(f"Template not found: {template_path}")
-        return Presentation(template_path)
+    def _apply_title_slide(self, slide, title: str):
+        config = self.theme_config
+        accent = self._hex_to_rgb(config["accent_color"])
+        is_dark = config["primary_color"] != "FFFFFF"
+        
+        shapes = slide.shapes
+        
+        title_box = shapes.add_textbox(Inches(1), Inches(2.8), Inches(11.333), Inches(2))
+        tf = title_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title
+        p.font.size = Pt(52)
+        p.font.bold = True
+        p.alignment = PP_ALIGN.CENTER
+        p.font.color.rgb = is_dark and RGBColor(255,255,255) or RGBColor(0,0,0)
+        
+        line = shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(4), Inches(4.6), Inches(5.333), Inches(0.06))
+        line.fill.solid()
+        line.fill.fore_color.rgb = accent
+        line.line.fill.background()
+
+    def _apply_content_slide(self, slide, data: Dict[str, Any], index: int):
+        config = self.theme_config
+        accent = self._hex_to_rgb(config["accent_color"])
+        is_dark = config["primary_color"] != "FFFFFF"
+        
+        shapes = slide.shapes
+        
+        title_box = shapes.add_textbox(Inches(0.6), Inches(0.35), Inches(12), Inches(0.9))
+        tf = title_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = data.get("title", f"Slide {index + 1}")
+        p.font.size = Pt(32)
+        p.font.bold = True
+        p.font.color.rgb = is_dark and RGBColor(255,255,255) or RGBColor(0,0,0)
+        
+        title_line = shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.6), Inches(1.15), Inches(0.8), Inches(0.06))
+        title_line.fill.solid()
+        title_line.fill.fore_color.rgb = accent
+        title_line.line.fill.background()
+        
+        bullet_box = shapes.add_textbox(Inches(0.7), Inches(1.4), Inches(12), Inches(5.5))
+        tf = bullet_box.text_frame
+        tf.word_wrap = True
+        
+        bullets = data.get("bullets", [])
+        for i, bullet in enumerate(bullets):
+            if i == 0:
+                p = tf.paragraphs[0]
+            else:
+                p = tf.add_paragraph()
+            p.text = bullet
+            p.font.size = Pt(22)
+            p.level = 0
+            p.space_before = Pt(14)
+            p.font.color.rgb = is_dark and RGBColor(230,230,230) or RGBColor(40,40,40)
 
 
 def create_from_template(
@@ -119,27 +105,17 @@ def create_from_template(
     theme: str = "minimal",
     template_path: Optional[str] = None
 ) -> Presentation:
-    """Create presentation from theme or custom template"""
     if template_path and os.path.exists(template_path):
-        prs = Presentation(template_path)
-    else:
-        builder = TemplateBuilder(theme)
-        prs = builder.create_presentation(slides, title)
-    return prs
-
-
-def main():
-    """Test template builder"""
-    test_slides = [
-        {"title": "Introduction", "bullets": ["Welcome", "Overview of topics"], "notes": ""},
-        {"title": "Key Points", "bullets": ["Point 1", "Point 2", "Point 3"], "notes": ""},
-        {"title": "Conclusion", "bullets": ["Summary", "Next steps"], "notes": ""},
-    ]
-
-    for theme in ["minimal", "modern", "corporate"]:
-        builder = TemplateBuilder(theme)
-        print(f"Theme '{theme}': {builder.theme_config['name']}")
+        return Presentation(template_path)
+    builder = TemplateBuilder(theme)
+    return builder.create_presentation(slides, title)
 
 
 if __name__ == "__main__":
-    main()
+    test = [
+        {"title": "Test Slide", "bullets": ["Point 1", "Point 2", "Point 3"]}
+    ]
+    for t in ["minimal", "modern", "corporate"]:
+        b = TemplateBuilder(t)
+        b.create_presentation(test, f"Test {t}").save(f"test_{t}.pptx")
+    print("Created test files")

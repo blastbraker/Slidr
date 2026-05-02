@@ -2,6 +2,7 @@
 
 import sys
 import os
+from datetime import datetime
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTextEdit, QCheckBox,
@@ -53,6 +54,7 @@ class SlidrWindow(QMainWindow):
         self.generation_thread = None
         self.current_slides = []
         self.input_file = None
+        self.template_radios = {}
 
         self.setWindowTitle("Slidr - AI Presentation Maker")
         self.setGeometry(100, 100, 800, 700)
@@ -131,7 +133,7 @@ class SlidrWindow(QMainWindow):
         layout_right.addWidget(QLabel("Template:"))
 
         self.template_group = QButtonGroup()
-        template_radios = {}
+        self.template_radios = {}
         i = 0
         for key, config in TEMPLATES.items():
             radio = QRadioButton(config["name"])
@@ -139,7 +141,7 @@ class SlidrWindow(QMainWindow):
             if i == 0:
                 radio.setChecked(True)
             self.template_group.addButton(radio)
-            template_radios[radio] = key
+            self.template_radios[radio] = key
             layout_right.addWidget(radio)
             i += 1
 
@@ -249,7 +251,7 @@ class SlidrWindow(QMainWindow):
             return
 
         selected_template = self.template_group.checkedButton()
-        for radio, key in template_radios.items():
+        for radio, key in self.template_radios.items():
             if radio is self.template_group.checkedButton():
                 template = key
                 break
@@ -257,8 +259,19 @@ class SlidrWindow(QMainWindow):
             template = "minimal"
 
         exported = []
-        base_name = os.path.join(output_dir, presentation_title.replace(" ", "_"))
-
+        
+        safe_title = "".join(c for c in presentation_title if c.isalnum() or c in " _-").strip()
+        if not safe_title:
+            safe_title = "presentation"
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_title = f"{safe_title}_{timestamp}"
+        
+        documents_dir = os.path.expanduser("~/Documents")
+        output_dir = documents_dir
+        
+        base_name = os.path.join(output_dir, safe_title)
+        
         try:
             if self.check_pptx.isChecked():
                 output_path = f"{base_name}.pptx"
@@ -287,7 +300,7 @@ class SlidrWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 "Success",
-                f"Presentation generated successfully!\n\nSaved to:\n" +
+                f"Presentation generated successfully!\n\nSaved to Documents folder:\n" +
                 "\n".join([os.path.basename(f) for f in exported])
             )
 
