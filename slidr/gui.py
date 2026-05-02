@@ -242,13 +242,10 @@ class SlidrWindow(QMainWindow):
         self.current_slides = slides
         self.progress_bar.setVisible(False)
 
-        presentation_title = self.topic_input.text().strip() or os.path.splitext(self.file_input)[0]
+        presentation_title = self.topic_input.text().strip() or os.path.splitext(self.file_input.text())[0]
 
-        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Folder")
-
-        if not output_dir:
-            self.status_label.setText("Ready")
-            return
+        # Hardcoded Documents folder - no prompt
+        output_dir = os.path.join(os.path.expanduser("~"), "Documents")
 
         selected_template = self.template_group.checkedButton()
         for radio, key in self.template_radios.items():
@@ -266,9 +263,6 @@ class SlidrWindow(QMainWindow):
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_title = f"{safe_title}_{timestamp}"
-        
-        documents_dir = os.path.expanduser("~/Documents")
-        output_dir = documents_dir
         
         base_name = os.path.join(output_dir, safe_title)
         

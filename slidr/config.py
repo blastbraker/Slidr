@@ -16,15 +16,15 @@ OUTPUT_FORMATS = ["PPTX", "PDF", "HTML"]
 TEMPLATES = {
     "minimal": {
         "name": "Minimal",
-        "description": "Clean white background with simple black text",
-        "primary_color": "FFFFFF",
-        "accent_color": "000000",
-        "text_color": "000000",
+        "description": "Clean modern look with accent colors",
+        "primary_color": "F5F5F5",
+        "accent_color": "2D5A8C",
+        "text_color": "1A1A1A",
         "font_name": "Arial",
     },
     "modern": {
         "name": "Modern",
-        "description": "Dark accent bar with geometric shapes",
+        "description": "Dark theme with accent bar",
         "primary_color": "1E1E1E",
         "accent_color": "4A90D9",
         "text_color": "FFFFFF",
@@ -32,7 +32,7 @@ TEMPLATES = {
     },
     "corporate": {
         "name": "Corporate",
-        "description": "Professional blue/gray with header sections",
+        "description": "Professional blue/gray",
         "primary_color": "2C3E50",
         "accent_color": "3498DB",
         "text_color": "FFFFFF",

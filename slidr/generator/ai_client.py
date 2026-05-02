@@ -111,14 +111,24 @@ Return only the JSON, no other text."""
         """Parse AI response into slide structure"""
         try:
             response = response.strip()
-            if response.startswith("```json"):
-                response = response[7:]
-            if response.startswith("```"):
-                response = response[3:]
-            if response.endswith("```"):
-                response = response[:-3]
-
-            slides = json.loads(response.strip())
+            
+            # Find JSON array in response
+            start_idx = response.find("[")
+            end_idx = response.rfind("]")
+            
+            if start_idx >= 0 and end_idx > start_idx:
+                response = response[start_idx:end_idx+1]
+            elif start_idx < 0:
+                # Try to extract from code blocks
+                if "```json" in response:
+                    response = response.split("```json")[1].split("```")[0]
+                elif "```" in response:
+                    response = response.split("```")[1].split("```")[0]
+                else:
+                    return self._fallback_parse(response)
+            
+            response = response.strip()
+            slides = json.loads(response)
             if isinstance(slides, list):
                 return slides
             return []
@@ -126,29 +136,52 @@ Return only the JSON, no other text."""
             return self._fallback_parse(response)
 
     def _fallback_parse(self, response: str) -> List[Dict[str, Any]]:
-        """Fallback parser if JSON parsing fails"""
+        """Fallback parser - extract title/bullets pattern"""
         slides = []
-        lines = response.strip().split("\n")
-
-        current_slide = None
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            if line.startswith('"title"') or line.startswith("title"):
-                if current_slide:
-                    slides.append(current_slide)
-                title = line.split(":", 1)[-1].strip().strip('",')
-                current_slide = {"title": title, "bullets": [], "notes": ""}
-            elif line.startswith('"') and current_slide:
-                bullet = line.strip('",').strip('"')
-                if bullet and len(bullet) > 2:
-                    current_slide["bullets"].append(bullet)
-
-        if current_slide:
-            slides.append(current_slide)
-
+        
+        # Look for patterns like "title": or just titles
+        import re
+        
+        # Find all slide sections
+        slide_patterns = re.findall(r'["\']?title["\']?\s*:\s*["\']?([^"\']+)["\']?', response, re.IGNORECASE)
+        bullet_patterns = re.findall(r'["\']?bullets["\']?\s*:\s*\[([^\]]+)\]', response, re.DOTALL)
+        
+        if slide_patterns:
+            for i, title in enumerate(slide_patterns):
+                bullets = []
+                if i < len(bullet_patterns):
+                    # Extract bullet items
+                    items = bullet_patterns[i].split(",")
+                    for item in items:
+                        item = item.strip().strip('"\'[],')
+                        if item:
+                            bullets.append(item)
+                
+                slides.append({
+                    "title": title.strip(),
+                    "bullets": bullets if bullets else ["Point content"],
+                    "notes": ""
+                })
+        
+        if not slides:
+            # Last resort: split by looking for numbered sections
+            lines = response.replace("{", "").replace("}", "").split("\n")
+            current = {"title": "", "bullets": [], "notes": ""}
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                # Detect title line (shorter, no punctuation)
+                if len(line) < 50 and not line.endswith((".", ",", ":")):
+                    if current["title"]:
+                        slides.append(current)
+                    current = {"title": line, "bullets": [], "notes": ""}
+                elif line.startswith("-") or line.startswith("*"):
+                    current["bullets"].append(line.lstrip("-* ").strip())
+            
+            if current["title"]:
+                slides.append(current)
+        
         return slides if slides else [{"title": "Overview", "bullets": ["Content generated from topic"], "notes": ""}]
 
 
