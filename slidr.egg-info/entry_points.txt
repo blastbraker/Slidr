@@ -1,0 +1,2 @@
+[console_scripts]
+slidr = slidr.gui:main

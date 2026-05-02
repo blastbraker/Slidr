@@ -1,0 +1,87 @@
+# Slidr - AI Presentation Maker
+
+Create professional presentations from topics or documents using AI. Supports PPTX, PDF, and web-based HTML output.
+
+## Features
+
+- **Multiple Input Methods**: Enter a topic directly or upload PDF/DOCX files
+- **AI-Powered**: Generate slide content using local Ollama AI
+- **Multiple Outputs**: Export to PPTX, PDF, and HTML formats
+- **Custom Templates**: Choose from 3 built-in themes (Minimal, Modern, Corporate)
+- **100% Free**: Uses local Ollama AI - no API costs
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+
+## Requirements
+
+- Python 3.8+
+- Ollama (installed locally)
+- AI Model: `llama3.2:3b`
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/blastbraker/Slidr.git
+cd Slidr
+```
+
+### 2. Install Ollama
+
+Download from [ollama.com](https://ollama.com) and install for your OS.
+
+Pull the AI model:
+```bash
+ollama pull llama3.2:3b
+```
+
+### 3. Install Python Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run Slidr
+
+```bash
+python -m slidr.gui
+```
+
+## Usage
+
+1. **Enter a topic** in the text field OR **browse** to upload a PDF/DOCX file
+2. Select **output formats** (PPTX, PDF, HTML)
+3. Choose a **template** (Minimal, Modern, or Corporate)
+4. Click **Generate Presentation**
+5. Find your presentation in the **Documents** folder
+
+## templates
+
+### Minimal Theme
+Dark blue background with red accent bar - clean and modern
+
+### Modern Theme  
+Dark purple background with pink accent - bold and creative
+
+### Corporate Theme
+Dark gray background with green accent - professional look
+
+## Troubleshooting
+
+### Ollama not connecting?
+- Make sure Ollama is running (`ollama serve`)
+- Check the model is downloaded (`ollama list`)
+
+### Import errors?
+- Ensure all dependencies are installed: `pip install -r requirements.txt`
+
+### PDF export not working?
+- Install pdf2image with poppler: `pip install pdf2image[poppler]`
+
+## License
+
+MIT License - See LICENSE file for details.
+
+## Author
+
+Ali Bahar
