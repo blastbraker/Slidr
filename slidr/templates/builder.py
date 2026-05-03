@@ -172,7 +172,7 @@ class TemplateBuilder:
             p.font.size = Pt(18)
             p.level = 0
             p.space_before = Pt(10)
-p.font.color.rgb = RGBColor(230, 230, 230)
+            p.font.color.rgb = RGBColor(230, 230, 230)
         
         # Right: Image area
         kw = data.get("image_keywords", "")
