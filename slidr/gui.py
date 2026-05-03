@@ -289,12 +289,20 @@ class SlidrWindow(QMainWindow):
                 HTMLExporter.export(slides, presentation_title, output_path, template)
                 exported.append(output_path)
 
-            self.status_label.setText(f"Generated {len(exported)} file(s)")
+            # Show slide types in status
+            slide_types = {}
+            for s in slides:
+                t = s.get("type", "content")
+                slide_types[t] = slide_types.get(t, 0) + 1
+            
+            type_summary = ", ".join([f"{v} {k}" for k, v in slide_types.items()])
+            
+            self.status_label.setText(f"Generated {len(slides)} slides: {type_summary}")
 
             QMessageBox.information(
                 self,
                 "Success",
-                f"Presentation generated successfully!\n\nSaved to Documents folder:\n" +
+                f"Presentation generated!\n\n{len(slides)} slides: {type_summary}\n\nSaved to Documents folder:\n" +
                 "\n".join([os.path.basename(f) for f in exported])
             )
 
