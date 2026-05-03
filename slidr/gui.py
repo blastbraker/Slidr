@@ -16,6 +16,7 @@ from slidr.config import TEMPLATES
 from slidr.processors import FileProcessor
 from slidr.generator import AIClient
 from slidr.exporters import PPTXExporter, PDFExporter, HTMLExporter
+from slidr.image_search import ImageSearch
 
 SLIDE_TYPES = {
     "title": "Title Slide - Big title with subtitle",
@@ -94,10 +95,22 @@ class SlideEditorWidget(QWidget):
         layout.addWidget(self.bullets_edit)
         
         # Image keywords
-        layout.addWidget(QLabel("Image Keywords:"))
+        layout.addWidget(QLabel("Image:"))
+        
+        image_layout = QHBoxLayout()
         self.image_keywords_edit = QLineEdit()
         self.image_keywords_edit.setPlaceholderText("Keywords for image search...")
-        layout.addWidget(self.image_keywords_edit)
+        image_layout.addWidget(self.image_keywords_edit)
+        
+        self.search_image_btn = QPushButton("Search")
+        self.search_image_btn.setStyleSheet("padding: 5px 10px;")
+        image_layout.addWidget(self.search_image_btn)
+        layout.addLayout(image_layout)
+        
+        # Image results
+        self.image_status = QLabel("No image selected")
+        self.image_status.setStyleSheet("color: #666; font-size: 11px; padding: 5px;")
+        layout.addWidget(self.image_status)
         
         layout.addStretch()
     
@@ -137,12 +150,14 @@ class SlidrWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.ai_client = AIClient()
+        self.image_search = ImageSearch()
         self.generation_thread = None
         self.current_slides = []
         self.input_file = None
         self.edited_slides = []
+        self.selected_image_url = None
 
-        self.setWindowTitle("Slidr - AI Presentation Maker v2.2")
+        self.setWindowTitle("Slidr - AI Presentation Maker v2.3")
         self.setGeometry(100, 100, 900, 700)
 
         self._setup_ui()
@@ -266,6 +281,10 @@ class SlidrWindow(QMainWindow):
         right_layout.addWidget(QLabel("Edit Slide:"))
         
         self.slide_editor = SlideEditorWidget()
+        # Connect search button
+        main_window = self.parent() or self
+        if hasattr(main_window, '_search_image'):
+            self.slide_editor.search_image_btn.clicked.connect(main_window._search_image)
         right_layout.addWidget(self.slide_editor)
         
         # Save button
@@ -407,23 +426,72 @@ class SlidrWindow(QMainWindow):
         self.status_label.setText("Error")
         QMessageBox.critical(self, "Generation Error", f"Failed to generate: {error}")
 
+    def _on_error(self, error):
+        self.progress_bar.setVisible(False)
+        self.status_label.setText("Error")
+        QMessageBox.critical(self, "Generation Error", f"Failed to generate: {error}")
+
     def _on_slide_selected(self, item):
         row = self.slide_list.row(item)
         if row < len(self.edited_slides):
-            self.slide_editor.load_slide(self.edited_slides[row])
+            slide = self.edited_slides[row]
+            self.slide_editor.load_slide(slide)
+            # Load saved image
+            saved_url = slide.get("image_url")
+            if saved_url:
+                self.selected_image_url = saved_url
+                self.slide_editor.image_status.setText("Image loaded from slide")
+            else:
+                self.selected_image_url = None
+                self.slide_editor.image_status.setText("No image selected")
+
+    def _search_image(self):
+        """Search for image based on keywords"""
+        keywords = self.slide_editor.image_keywords_edit.text().strip()
+        if not keywords:
+            QMessageBox.warning(self, "No Keywords", "Enter keywords to search for images.")
+            return
+        
+        self.slide_editor.image_status.setText("Searching...")
+        QApplication.processEvents()
+        
+        results = self.image_search.search_unsplash(keywords, 6)
+        
+        if not results:
+            results = self.image_search._get_demo_images(keywords, 3)
+        
+        # Show results
+        if results and results[0].get("url"):
+            # Show first result
+            self.selected_image_url = results[0].get("url")
+            desc = results[0].get("description", keywords)
+            self.slide_editor.image_status.setText(f"✓ Selected: {desc[:40]}...")
+        else:
+            self.selected_image_url = None
+            # Show placeholder info
+            self.slide_editor.image_status.setText(f"Demo: {keywords} - Use image from online/paste URL")
 
     def _save_slide(self):
         current_row = self.slide_list.currentRow()
         if current_row < len(self.edited_slides):
-            self.edited_slides[current_row] = self.slide_editor.get_slide_data()
+            slide_data = self.slide_editor.get_slide_data()
+            
+            # Save image URL if selected
+            if self.selected_image_url:
+                slide_data["image_url"] = self.selected_image_url
+            
+            self.edited_slides[current_row] = slide_data
             
             # Update list item
             slide = self.edited_slides[current_row]
             slide_type = slide.get("type", "content")
             title = slide.get("title", f"Slide {current_row+1}")
-            self.slide_list.currentItem().setText(f"[{slide_type}] {title}")
             
-            QMessageBox.information(self, "Saved", "Slide changes saved!")
+            # Show image indicator
+            img_indicator = " 📷" if slide.get("image_url") else ""
+            self.slide_list.currentItem().setText(f"[{slide_type}] {title}{img_indicator}")
+            
+            QMessageBox.information(self, "Saved", "Slide changes saved!" + (" Image saved!" if self.selected_image_url else ""))
 
     def _export(self):
         if not self.edited_slides:
