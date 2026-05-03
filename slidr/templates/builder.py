@@ -172,32 +172,58 @@ class TemplateBuilder:
             p.font.size = Pt(18)
             p.level = 0
             p.space_before = Pt(10)
-            p.font.color.rgb = RGBColor(230, 230, 230)
+p.font.color.rgb = RGBColor(230, 230, 230)
         
-        # Right: Image placeholder
-        img_box = s.add_shape(MSO_SHAPE.RECTANGLE, Inches(6.2), Inches(1.1), Inches(6.5), Inches(5.2))
-        img_box.fill.solid()
-        img_box.fill.fore_color.rgb = RGBColor(60, 60, 60)
-        img_box.line.color.rgb = self._rgb(c["accent"])
-        
-        # Image note textbox
+        # Right: Image area
         kw = data.get("image_keywords", "")
         image_url = data.get("image_url", "")
         
-        img_text = f"[Image: {kw}]" if kw else "[Image placeholder]"
-        if image_url:
-            img_text = f"✅ Image: {kw}"
+        # Try to download and add real image
+        image_added = False
+        if image_url and image_url.startswith("http"):
+            try:
+                import requests
+                from pptx.util import Inches, Emu
+                # Download image
+                resp = requests.get(image_url, timeout=15)
+                if resp.status_code == 200:
+                    # Save to temp file
+                    import tempfile
+                    import os
+                    ext = ".jpg" if "jpg" in image_url else ".png"
+                    temp_path = tempfile.gettempdir() + f"/slidr_img{ext}"
+                    with open(temp_path, "wb") as f:
+                        f.write(resp.content)
+                    
+                    # Add image to slide
+                    try:
+                        slide.shapes.add_picture(
+                            temp_path,
+                            Inches(6.2), Inches(1.1),
+                            width=Inches(6.0)
+                        )
+                        image_added = True
+                    except Exception as e:
+                        print(f"Could not add image: {e}")
+            except Exception as e:
+                print(f"Could not download image: {e}")
         
-        tb = s.add_textbox(Inches(6.2), Inches(3.5), Inches(6.5), Inches(1))
-        tf = tb.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = img_text
+        if not image_added:
+            # Show placeholder box
+            img_box = s.add_shape(MSO_SHAPE.RECTANGLE, Inches(6.2), Inches(1.1), Inches(6.5), Inches(5.2))
+            img_box.fill.solid()
+            img_box.fill.fore_color.rgb = RGBColor(60, 60, 60)
+            img_box.line.color.rgb = self._rgb(c["accent"])
+            
+            tb = s.add_textbox(Inches(6.2), Inches(3.5), Inches(6.5), Inches(1))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = f"[Image: {kw}]" if kw else "[Image placeholder]"
         
         p.font.size = Pt(16)
         p.alignment = PP_ALIGN.CENTER
         p.font.color.rgb = RGBColor(150, 150, 150)
-        p.font.size = Pt(16)
 
     def _layout_two_column(self, slide, data: Dict[str, Any]):
         c = self.colors

@@ -99,16 +99,21 @@ class SlideEditorWidget(QWidget):
         
         image_layout = QHBoxLayout()
         self.image_keywords_edit = QLineEdit()
-        self.image_keywords_edit.setPlaceholderText("Keywords for image search...")
+        self.image_keywords_edit.setPlaceholderText("Image URL (paste direct link)...")
         image_layout.addWidget(self.image_keywords_edit)
         
-        self.search_image_btn = QPushButton("Search")
+        self.search_image_btn = QPushButton("Add")
         self.search_image_btn.setStyleSheet("padding: 5px 10px;")
         image_layout.addWidget(self.search_image_btn)
         layout.addLayout(image_layout)
         
+        # Helper text
+        help_label = QLabel("Tip: Right-click image → Copy image address")
+        help_label.setStyleSheet("color: #888; font-size: 10px;")
+        layout.addWidget(help_label)
+        
         # Image results
-        self.image_status = QLabel("No image selected")
+        self.image_status = QLabel("No image URL - paste a direct image link")
         self.image_status.setStyleSheet("color: #666; font-size: 11px; padding: 5px;")
         layout.addWidget(self.image_status)
         
@@ -487,9 +492,14 @@ class SlidrWindow(QMainWindow):
         if current_row < len(self.edited_slides):
             slide_data = self.slide_editor.get_slide_data()
             
-            # Save image URL if selected
-            if self.selected_image_url:
-                slide_data["image_url"] = self.selected_image_url
+            # Save image URL - read directly from the input field
+            image_url = self.slide_editor.image_keywords_edit.text().strip()
+            
+            # Check if it looks like a URL
+            if image_url and ("http" in image_url or "." in image_url):
+                # It's a URL - save it
+                slide_data["image_url"] = image_url
+                self.slide_editor.image_status.setText("✅ Image URL saved!")
             
             self.edited_slides[current_row] = slide_data
             
@@ -502,7 +512,10 @@ class SlidrWindow(QMainWindow):
             img_indicator = " 📷" if slide.get("image_url") else ""
             self.slide_list.currentItem().setText(f"[{slide_type}] {title}{img_indicator}")
             
-            QMessageBox.information(self, "Saved", "Slide changes saved!" + (" Image saved!" if self.selected_image_url else ""))
+            msg = "Slide changes saved!"
+            if slide.get("image_url"):
+                msg += " Image added!"
+            QMessageBox.information(self, "Saved", msg)
 
     def _export(self):
         if not self.edited_slides:
