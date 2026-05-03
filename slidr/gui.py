@@ -133,9 +133,26 @@ class SlideEditorWidget(QWidget):
         self.subtitle_edit.setText(slide_data.get("subtitle", ""))
         
         bullets = slide_data.get("bullets", [])
-        self.bullets_edit.setText("\n".join(bullets))
+        # Handle case where bullets might be dicts or strings
+        if bullets:
+            bullet_strs = []
+            for b in bullets:
+                if isinstance(b, dict):
+                    bullet_strs.append(b.get("text", str(b)))
+                elif isinstance(b, str):
+                    bullet_strs.append(b)
+                else:
+                    bullet_strs.append(str(b))
+            self.bullets_edit.setText("\n".join(bullet_strs))
+        else:
+            self.bullets_edit.setText("")
         
-        self.image_keywords_edit.setText(slide_data.get("image_keywords", ""))
+        # Load image URL (could be in image_url or image_keywords field)
+        image_url = slide_data.get("image_url", "")
+        if image_url:
+            self.image_keywords_edit.setText(image_url)
+        else:
+            self.image_keywords_edit.setText(slide_data.get("image_keywords", ""))
     
     def get_slide_data(self) -> dict:
         bullets_text = self.bullets_edit.toPlainText()
