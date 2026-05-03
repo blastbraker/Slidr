@@ -157,7 +157,7 @@ class SlidrWindow(QMainWindow):
         self.edited_slides = []
         self.selected_image_url = None
 
-        self.setWindowTitle("Slidr - AI Presentation Maker v2.3")
+        self.setWindowTitle("Slidr - AI Presentation Maker v2.4")
         self.setGeometry(100, 100, 900, 700)
 
         self._setup_ui()
@@ -191,6 +191,17 @@ class SlidrWindow(QMainWindow):
         self.tabs.addTab(self.export_tab, "Export")
         
         main_layout.addWidget(self.tabs)
+        
+        # Initialize theme (default dark)
+        self.dark_mode = True
+        self._apply_theme()
+        
+        # Theme toggle button
+        theme_btn = QPushButton("🌙" if self.dark_mode else "☀️")
+        theme_btn.setFixedSize(40, 40)
+        theme_btn.setStyleSheet("font-size: 18px; border: none; background: transparent;")
+        theme_btn.clicked.connect(self._toggle_theme)
+        main_layout.addWidget(theme_btn, 0, Qt.AlignRight)
 
     def _create_generate_tab(self) -> QWidget:
         widget = QWidget()
@@ -540,6 +551,124 @@ class SlidrWindow(QMainWindow):
 
         except Exception as e:
             QMessageBox.critical(self, "Export Error", f"Failed to export: {e}")
+
+    def _toggle_theme(self):
+        self.dark_mode = not self.dark_mode
+        self._apply_theme()
+    
+    def _apply_theme(self):
+        if self.dark_mode:
+            dark_stylesheet = """
+                QMainWindow { background-color: #1E1E2E; }
+                QWidget { background-color: #1E1E2E; color: #E0E0E0; }
+                QGroupBox { 
+                    border: 1px solid #333; 
+                    border-radius: 8px;
+                    padding: 10px;
+                    background-color: #252535;
+                    margin-top: 10px;
+                }
+                QGroupBox::title { color: #E0E0E0; }
+                QLineEdit, QTextEdit { 
+                    background-color: #2D2D3D; 
+                    color: #E0E0E0;
+                    border: 1px solid #444;
+                    border-radius: 5px;
+                    padding: 8px;
+                }
+                QPushButton { 
+                    background-color: #3D3D4D; 
+                    color: #E0E0E0;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 8px 16px;
+                }
+                QPushButton:hover { background-color: #4D4D5D; }
+                QTabWidget::pane { border: 1px solid #333; background-color: #252535; }
+                QTabBar::tab { 
+                    background-color: #2D2D3D; 
+                    color: #AAA;
+                    padding: 8px 16px;
+                    border: none;
+                }
+                QTabBar::tab:selected { background-color: #3D3D4D; color: #FFF; }
+                QListWidget { 
+                    background-color: #2D2D3D; 
+                    color: #E0E0E0;
+                    border: 1px solid #333;
+                }
+                QComboBox { 
+                    background-color: #2D2D3D; 
+                    color: #E0E0E0;
+                    border: 1px solid #444;
+                    padding: 5px;
+                }
+                QCheckBox { color: #E0E0E0; }
+                QLabel { color: #E0E0E0; }
+                QProgressBar { 
+                    background-color: #2D2D3D; 
+                    border: 1px solid #333;
+                }
+                QProgressBar::chunk { background-color: #4A90D9; }
+            """
+            self.setStyleSheet(dark_stylesheet)
+            self.setWindowTitle("Slidr - AI Presentation Maker v2.4 🌙")
+        else:
+            light_stylesheet = """
+                QMainWindow { background-color: #F5F5F5; }
+                QWidget { background-color: #F5F5F5; color: #1A1A1A; }
+                QGroupBox { 
+                    border: 1px solid #DDD; 
+                    border-radius: 8px;
+                    padding: 10px;
+                    background-color: #FFF;
+                    margin-top: 10px;
+                }
+                QGroupBox::title { color: #333; }
+                QLineEdit, QTextEdit { 
+                    background-color: #FFF; 
+                    color: #1A1A1A;
+                    border: 1px solid #CCC;
+                    border-radius: 5px;
+                    padding: 8px;
+                }
+                QPushButton { 
+                    background-color: #4A90D9; 
+                    color: #FFF;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 8px 16px;
+                }
+                QPushButton:hover { background-color: #357ABD; }
+                QTabWidget::pane { border: 1px solid #DDD; background-color: #FFF; }
+                QTabBar::tab { 
+                    background-color: #E0E0E0; 
+                    color: #666;
+                    padding: 8px 16px;
+                    border: none;
+                }
+                QTabBar::tab:selected { background-color: #4A90D9; color: #FFF; }
+                QListWidget { 
+                    background-color: #FFF; 
+                    color: #1A1A1A;
+                    border: 1px solid #DDD;
+                }
+                QComboBox { 
+                    background-color: #FFF; 
+                    color: #1A1A1A;
+                    border: 1px solid #CCC;
+                    padding: 5px;
+                }
+                QCheckBox { color: #333; }
+                QLabel { color: #333; }
+                QProgressBar { 
+                    background-color: #E0E0E0; 
+                    border: 1px solid #CCC;
+                }
+                QProgressBar::chunk { background-color: #4A90D9; }
+            """
+            self.setStyleSheet(light_stylesheet)
+            self.setWindowTitle("Slidr - AI Presentation Maker v2.4 ☀️")
 
 
 def main():
