@@ -180,15 +180,24 @@ class TemplateBuilder:
         img_box.fill.fore_color.rgb = RGBColor(60, 60, 60)
         img_box.line.color.rgb = self._rgb(c["accent"])
         
+        # Image note textbox
         kw = data.get("image_keywords", "")
+        image_url = data.get("image_url", "")
+        
+        img_text = f"[Image: {kw}]" if kw else "[Image placeholder]"
+        if image_url:
+            img_text = f"✅ Image: {kw}"
+        
         tb = s.add_textbox(Inches(6.2), Inches(3.5), Inches(6.5), Inches(1))
         tf = tb.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.text = f"📷 Image: {kw}" if kw else "📷 Image Placeholder"
+        p.text = img_text
+        
         p.font.size = Pt(16)
         p.alignment = PP_ALIGN.CENTER
         p.font.color.rgb = RGBColor(150, 150, 150)
+        p.font.size = Pt(16)
 
     def _layout_two_column(self, slide, data: Dict[str, Any]):
         c = self.colors
