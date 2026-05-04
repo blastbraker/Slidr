@@ -1,4 +1,4 @@
-"""Main GUI for Slidr - AI Presentation Maker v2.2"""
+"""Main GUI for Slidr - AI Presentation Maker v3"""
 
 import sys
 import os
@@ -12,19 +12,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread, Signal, QSize
 from PySide6.QtGui import QFont
-from slidr.config import TEMPLATES
-from slidr.processors import FileProcessor
-from slidr.generator import AIClient
-from slidr.exporters import PPTXExporter, PDFExporter, HTMLExporter
-from slidr.image_search import ImageSearch
-
-SLIDE_TYPES = {
-    "title": "Title Slide - Big title with subtitle",
-    "content": "Content - Title and bullet points",
-    "bullets_image": "Bullets + Image - Left bullets, right image",
-    "two_column": "Two Column - Two content columns",
-    "divider": "Divider - Section transition"
-}
+from slidr.config import TEMPLATES, SLIDE_TYPES
 
 
 class GenerationThread(QThread):
@@ -43,6 +31,7 @@ class GenerationThread(QThread):
         try:
             self.progress.emit("Generating slides...")
             if self.file_path:
+                from slidr.processors import FileProcessor
                 text = FileProcessor.extract_text(self.file_path)
                 slides = self.client.generate_from_text(text, self.num_slides)
             else:
@@ -54,123 +43,239 @@ class GenerationThread(QThread):
 
 
 class SlideEditorWidget(QWidget):
-    """Widget for editing a single slide"""
+    """Widget for editing a single slide with dynamic fields based on layout type"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.slide_data = {}
+        self.field_widgets = {}
         self._setup_ui()
     
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         
-        # Type selector
         type_layout = QHBoxLayout()
         type_layout.addWidget(QLabel("Layout:"))
         self.type_combo = QComboBox()
         for t, desc in SLIDE_TYPES.items():
-            self.type_combo.addItem(desc, t)
+            self.type_combo.addItem(desc["name"], t)
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
         type_layout.addWidget(self.type_combo)
+        
+        self.ai_suggested_label = QLabel("🤖 AI suggested")
+        self.ai_suggested_label.setStyleSheet("color: #4A90D9; font-size: 11px;")
+        type_layout.addWidget(self.ai_suggested_label)
         type_layout.addStretch()
         layout.addLayout(type_layout)
         
-        # Title
-        layout.addWidget(QLabel("Title:"))
-        self.title_edit = QLineEdit()
-        self.title_edit.setPlaceholderText("Slide title...")
-        layout.addWidget(self.title_edit)
+        self.fields_container = QWidget()
+        self.fields_layout = QVBoxLayout(self.fields_container)
+        self.fields_layout.setSpacing(8)
+        layout.addWidget(self.fields_container)
         
-        # Subtitle
-        layout.addWidget(QLabel("Subtitle:"))
-        self.subtitle_edit = QLineEdit()
-        self.subtitle_edit.setPlaceholderText("Optional subtitle...")
-        layout.addWidget(self.subtitle_edit)
-        
-        # Bullets
-        layout.addWidget(QLabel("Bullet Points:"))
-        self.bullets_edit = QTextEdit()
-        self.bullets_edit.setPlaceholderText("Enter one bullet point per line...")
-        self.bullets_edit.setMaximumHeight(120)
-        layout.addWidget(self.bullets_edit)
-        
-        # Image keywords
-        layout.addWidget(QLabel("Image:"))
-        
-        image_layout = QHBoxLayout()
-        self.image_keywords_edit = QLineEdit()
-        self.image_keywords_edit.setPlaceholderText("Image URL (paste direct link)...")
-        image_layout.addWidget(self.image_keywords_edit)
-        
-        self.search_image_btn = QPushButton("Add")
-        self.search_image_btn.setStyleSheet("padding: 5px 10px;")
-        image_layout.addWidget(self.search_image_btn)
-        layout.addLayout(image_layout)
-        
-        # Helper text
-        help_label = QLabel("Tip: Right-click image → Copy image address")
-        help_label.setStyleSheet("color: #888; font-size: 10px;")
-        layout.addWidget(help_label)
-        
-        # Image results
-        self.image_status = QLabel("No image URL - paste a direct image link")
-        self.image_status.setStyleSheet("color: #666; font-size: 11px; padding: 5px;")
-        layout.addWidget(self.image_status)
+        self._build_fields("content")
         
         layout.addStretch()
+    
+    def _build_fields(self, slide_type: str):
+        while self.fields_layout.count():
+            item = self.fields_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        self.field_widgets = {}
+        
+        if slide_type in ("title", "content", "divider", "two_column"):
+            self._add_field("Title", "title_edit", QLineEdit(), "Slide title...")
+            self._add_field("Subtitle", "subtitle_edit", QLineEdit(), "Optional subtitle...")
+            
+        if slide_type in ("content", "bullets_image", "two_column"):
+            self._add_field("Bullet Points", "bullets_edit", QTextEdit(), "One bullet per line...", height=100)
+            
+        if slide_type == "quote":
+            self._add_field("Quote", "quote_edit", QTextEdit(), "The quote text...", height=80)
+            self._add_field("Author", "author_edit", QLineEdit(), "Author name...")
+            
+        if slide_type == "statistic":
+            self._add_field("Big Number", "big_number_edit", QLineEdit(), "e.g., 85%, $1B, 3x")
+            self._add_field("Label", "stat_label_edit", QLineEdit(), "e.g., Growth, Revenue")
+            self._add_field("Context", "subtitle_edit", QLineEdit(), "Additional context...")
+            
+        if slide_type == "comparison":
+            self._add_field("Title", "title_edit", QLineEdit(), "Slide title...")
+            self._add_field("Left Column Title", "left_title_edit", QLineEdit(), "e.g., Pros")
+            self._add_field("Left Items", "left_items_edit", QTextEdit(), "One per line...", height=80)
+            self._add_field("Right Column Title", "right_title_edit", QLineEdit(), "e.g., Cons")
+            self._add_field("Right Items", "right_items_edit", QTextEdit(), "One per line...", height=80)
+            
+        if slide_type == "timeline":
+            self._add_field("Title", "title_edit", QLineEdit(), "Slide title...")
+            self._add_field("Events", "events_edit", QTextEdit(), "Format: YYYY - Event name\nOne per line...", height=100)
+            
+        if slide_type == "full_image":
+            self._add_field("Overlay Title", "overlay_title_edit", QLineEdit(), "Title over image...")
+            self._add_field("Caption", "caption_edit", QLineEdit(), "Image caption...")
+            
+        if slide_type in ("title", "content", "bullets_image", "two_column", "quote", "comparison", "timeline", "full_image"):
+            self._add_field("Image Keywords", "image_keywords_edit", QLineEdit(), "Keywords for image search...")
+            
+            image_layout = QHBoxLayout()
+            self.field_widgets["image_url_edit"] = self.field_widgets.get("image_keywords_edit")
+            self.search_image_btn = QPushButton("Search")
+            self.search_image_btn.setStyleSheet("padding: 5px 10px;")
+            image_layout.addWidget(self.search_image_btn)
+            self.fields_layout.addLayout(image_layout)
+    
+    def _add_field(self, label: str, key: str, widget, placeholder: str = "", height: int = 0):
+        self.fields_layout.addWidget(QLabel(label))
+        if isinstance(widget, QLineEdit):
+            widget.setPlaceholderText(placeholder)
+        elif isinstance(widget, QTextEdit):
+            widget.setPlaceholderText(placeholder)
+            if height > 0:
+                widget.setMaximumHeight(height)
+        self.fields_layout.addWidget(widget)
+        self.field_widgets[key] = widget
+    
+    def _on_type_changed(self, index):
+        slide_type = self.type_combo.currentData()
+        self._build_fields(slide_type)
     
     def load_slide(self, slide_data: dict):
         self.slide_data = slide_data
         slide_type = slide_data.get("type", "content")
         
-        # Set combo box
         for i in range(self.type_combo.count()):
             if self.type_combo.itemData(i) == slide_type:
                 self.type_combo.setCurrentIndex(i)
                 break
         
-        self.title_edit.setText(slide_data.get("title", ""))
-        self.subtitle_edit.setText(slide_data.get("subtitle", ""))
+        self.ai_suggested_label.setVisible(False)
+        self.ai_suggested_label.setText("🤖 AI suggested")
         
-        bullets = slide_data.get("bullets", [])
-        # Handle case where bullets might be dicts or strings
-        if bullets:
-            bullet_strs = []
-            for b in bullets:
-                if isinstance(b, dict):
-                    bullet_strs.append(b.get("text", str(b)))
-                elif isinstance(b, str):
-                    bullet_strs.append(b)
-                else:
-                    bullet_strs.append(str(b))
-            self.bullets_edit.setText("\n".join(bullet_strs))
-        else:
-            self.bullets_edit.setText("")
+        self._build_fields(slide_type)
         
-        # Load image URL (could be in image_url or image_keywords field)
+        self._set_field("title_edit", "title", slide_data)
+        self._set_field("subtitle_edit", "subtitle", slide_data)
+        self._set_field("bullets_edit", "bullets", slide_data, is_list=True)
+        self._set_field("quote_edit", "quote", slide_data)
+        self._set_field("author_edit", "author", slide_data)
+        self._set_field("big_number_edit", "big_number", slide_data)
+        self._set_field("stat_label_edit", "stat_label", slide_data)
+        self._set_field("left_title_edit", "left_title", slide_data)
+        self._set_field("left_items_edit", "left_items", slide_data, is_list=True)
+        self._set_field("right_title_edit", "right_title", slide_data)
+        self._set_field("right_items_edit", "right_items", slide_data, is_list=True)
+        self._set_field("events_edit", "events", slide_data, is_events=True)
+        self._set_field("caption_edit", "caption", slide_data)
+        self._set_field("overlay_title_edit", "overlay_title", slide_data)
+        self._set_field("image_keywords_edit", "image_keywords", slide_data)
+        
         image_url = slide_data.get("image_url", "")
-        if image_url:
-            self.image_keywords_edit.setText(image_url)
+        if image_url and "image_keywords_edit" in self.field_widgets:
+            self.field_widgets["image_keywords_edit"].setText(image_url)
+    
+    def _set_field(self, widget_key: str, data_key: str, slide_data: dict, is_list: bool = False, is_events: bool = False):
+        if widget_key not in self.field_widgets:
+            return
+        widget = self.field_widgets[widget_key]
+        
+        if is_events:
+            events = slide_data.get("events", [])
+            if events:
+                lines = []
+                for e in events:
+                    if isinstance(e, dict):
+                        date = e.get("date", "")
+                        title = e.get("title", "")
+                        lines.append(f"{date} - {title}" if date else title)
+                    else:
+                        lines.append(str(e))
+                widget.setText("\n".join(lines))
+        elif is_list:
+            items = slide_data.get(data_key, [])
+            if items:
+                lines = [str(i) for i in items]
+                widget.setText("\n".join(lines))
         else:
-            self.image_keywords_edit.setText(slide_data.get("image_keywords", ""))
+            value = slide_data.get(data_key, "")
+            if isinstance(widget, QTextEdit):
+                widget.setText(value)
+            else:
+                widget.setText(value)
     
     def get_slide_data(self) -> dict:
-        bullets_text = self.bullets_edit.toPlainText()
-        bullets = [b.strip() for b in bullets_text.split("\n") if b.strip()]
+        slide_type = self.type_combo.currentData()
         
-        return {
-            "type": self.type_combo.currentData(),
-            "title": self.title_edit.text(),
-            "subtitle": self.subtitle_edit.text(),
-            "bullets": bullets,
-            "image_keywords": self.image_keywords_edit.text(),
+        data = {
+            "type": slide_type,
+            "title": self._get_field("title_edit"),
+            "subtitle": self._get_field("subtitle_edit"),
             "notes": self.slide_data.get("notes", "")
         }
+        
+        if slide_type in ("content", "bullets_image", "two_column"):
+            data["bullets"] = self._get_field_list("bullets_edit")
+            
+        elif slide_type == "quote":
+            data["quote"] = self._get_field("quote_edit")
+            data["author"] = self._get_field("author_edit")
+            
+        elif slide_type == "statistic":
+            data["big_number"] = self._get_field("big_number_edit")
+            data["stat_label"] = self._get_field("stat_label_edit")
+            
+        elif slide_type == "comparison":
+            data["left_title"] = self._get_field("left_title_edit")
+            data["left_items"] = self._get_field_list("left_items_edit")
+            data["right_title"] = self._get_field("right_title_edit")
+            data["right_items"] = self._get_field_list("right_items_edit")
+            
+        elif slide_type == "timeline":
+            events_text = self._get_field("events_edit")
+            events = []
+            for line in events_text.split("\n"):
+                line = line.strip()
+                if line:
+                    if " - " in line:
+                        parts = line.split(" - ", 1)
+                        events.append({"date": parts[0].strip(), "title": parts[1].strip()})
+                    else:
+                        events.append({"date": "", "title": line})
+            data["events"] = events
+            
+        elif slide_type == "full_image":
+            data["overlay_title"] = self._get_field("overlay_title_edit")
+            data["caption"] = self._get_field("caption_edit")
+            
+        if slide_type in ("title", "content", "bullets_image", "two_column", "quote", "comparison", "timeline", "full_image"):
+            img_kw = self._get_field("image_keywords_edit")
+            if img_kw and "http" in img_kw:
+                data["image_url"] = img_kw
+            else:
+                data["image_keywords"] = img_kw
+        
+        return data
+    
+    def _get_field(self, key: str) -> str:
+        if key not in self.field_widgets:
+            return ""
+        widget = self.field_widgets[key]
+        if isinstance(widget, QTextEdit):
+            return widget.toPlainText()
+        return widget.text()
+    
+    def _get_field_list(self, key: str) -> list:
+        text = self._get_field(key)
+        return [b.strip() for b in text.split("\n") if b.strip()]
 
 
 class SlidrWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        from slidr.generator import AIClient
+        from slidr.image_search import ImageSearch
         self.ai_client = AIClient()
         self.image_search = ImageSearch()
         self.generation_thread = None
@@ -179,8 +284,8 @@ class SlidrWindow(QMainWindow):
         self.edited_slides = []
         self.selected_image_url = None
 
-        self.setWindowTitle("Slidr - AI Presentation Maker v2.4")
-        self.setGeometry(100, 100, 900, 700)
+        self.setWindowTitle("Slidr - AI Presentation Maker v3.0")
+        self.setGeometry(100, 100, 950, 750)
 
         self._setup_ui()
 
@@ -190,35 +295,28 @@ class SlidrWindow(QMainWindow):
         
         main_layout = QVBoxLayout(central_widget)
         
-        # Title
         title_label = QLabel("Slidr")
         title_label.setStyleSheet("font-size: 28px; font-weight: bold; color: #4A90D9;")
         title_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title_label)
         
-        # Tab widget
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
         
-        # Tab 1: Generate
         self.generate_tab = self._create_generate_tab()
         self.tabs.addTab(self.generate_tab, "Generate")
         
-        # Tab 2: Edit Slides
         self.edit_tab = self._create_edit_tab()
         self.tabs.addTab(self.edit_tab, "Edit Slides")
         
-        # Tab 3: Export
         self.export_tab = self._create_export_tab()
         self.tabs.addTab(self.export_tab, "Export")
         
         main_layout.addWidget(self.tabs)
         
-        # Initialize theme (default dark)
         self.dark_mode = True
         self._apply_theme()
         
-        # Theme toggle button
         theme_btn = QPushButton("🌙" if self.dark_mode else "☀️")
         theme_btn.setFixedSize(40, 40)
         theme_btn.setStyleSheet("font-size: 18px; border: none; background: transparent;")
@@ -230,7 +328,6 @@ class SlidrWindow(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.setSpacing(15)
         
-        # Input group
         input_group = QGroupBox("Input")
         input_layout = QVBoxLayout(input_group)
         
@@ -254,20 +351,18 @@ class SlidrWindow(QMainWindow):
         file_layout.addWidget(browse_btn)
         input_layout.addLayout(file_layout)
         
-        # Slide count
         count_layout = QHBoxLayout()
         count_layout.addWidget(QLabel("Number of slides:"))
         self.slide_count_combo = QComboBox()
         for i in range(4, 13):
             self.slide_count_combo.addItem(str(i), i)
-        self.slide_count_combo.setCurrentIndex(2)  # Default 6
+        self.slide_count_combo.setCurrentIndex(2)
         count_layout.addWidget(self.slide_count_combo)
         count_layout.addStretch()
         input_layout.addLayout(count_layout)
         
         layout.addWidget(input_group)
         
-        # Generate button
         generate_btn = QPushButton("Generate Presentation")
         generate_btn.setStyleSheet("""
             QPushButton { background-color: #4A90D9; color: white; padding: 12px;
@@ -277,7 +372,6 @@ class SlidrWindow(QMainWindow):
         generate_btn.clicked.connect(self._generate)
         layout.addWidget(generate_btn)
         
-        # Progress
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
@@ -293,7 +387,6 @@ class SlidrWindow(QMainWindow):
         widget = QWidget()
         layout = QHBoxLayout(widget)
         
-        # Left: Slide list
         left_panel = QFrame()
         left_panel.setFrameStyle(QFrame.StyledPanel)
         left_layout = QVBoxLayout(left_panel)
@@ -306,7 +399,6 @@ class SlidrWindow(QMainWindow):
         
         layout.addWidget(left_panel, 1)
         
-        # Right: Slide editor
         right_panel = QFrame()
         right_panel.setFrameStyle(QFrame.StyledPanel)
         right_layout = QVBoxLayout(right_panel)
@@ -314,20 +406,14 @@ class SlidrWindow(QMainWindow):
         right_layout.addWidget(QLabel("Edit Slide:"))
         
         self.slide_editor = SlideEditorWidget()
-        # Connect search button
-        main_window = self.parent() or self
-        if hasattr(main_window, '_search_image'):
-            self.slide_editor.search_image_btn.clicked.connect(main_window._search_image)
         right_layout.addWidget(self.slide_editor)
         
-        # Save button
         save_btn = QPushButton("Save Changes")
         save_btn.clicked.connect(self._save_slide)
         right_layout.addWidget(save_btn)
         
         layout.addWidget(right_panel, 2)
         
-        # Configure
         layout.setStretchFactor(left_panel, 1)
         layout.setStretchFactor(right_panel, 2)
         
@@ -338,7 +424,6 @@ class SlidrWindow(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.setSpacing(15)
         
-        # Template selection
         template_group = QGroupBox("Template")
         template_layout = QVBoxLayout(template_group)
         
@@ -352,13 +437,11 @@ class SlidrWindow(QMainWindow):
             self.template_radios[radio] = key
             template_layout.addWidget(radio)
         
-        # Set default
         first_radio = list(self.template_radios.keys())[0]
         first_radio.setChecked(True)
         
         layout.addWidget(template_group)
         
-        # Output formats
         format_group = QGroupBox("Output Formats")
         format_layout = QVBoxLayout(format_group)
         
@@ -374,7 +457,6 @@ class SlidrWindow(QMainWindow):
         
         layout.addWidget(format_group)
         
-        # Export button
         export_btn = QPushButton("Export Presentation")
         export_btn.setStyleSheet("""
             QPushButton { background-color: #27AE60; color: white; padding: 12px;
@@ -430,14 +512,12 @@ class SlidrWindow(QMainWindow):
         self.current_slides = slides
         self.edited_slides = slides.copy()
         
-        # Update slide list
         self.slide_list.clear()
         for i, slide in enumerate(slides):
             slide_type = slide.get("type", "content")
             title = slide.get("title", f"Slide {i+1}")
             self.slide_list.addItem(f"[{slide_type}] {title}")
         
-        # Count by type
         type_counts = {}
         for s in slides:
             t = s.get("type", "content")
@@ -446,18 +526,11 @@ class SlidrWindow(QMainWindow):
         type_summary = ", ".join([f"{v} {k}" for k, v in type_counts.items()])
         self.status_label.setText(f"Generated {len(slides)} slides: {type_summary}")
         
-        # Switch to edit tab
         self.tabs.setCurrentIndex(1)
         
-        # Select first slide
         if slides:
             self.slide_list.setCurrentRow(0)
             self._on_slide_selected(self.slide_list.currentItem())
-
-    def _on_error(self, error):
-        self.progress_bar.setVisible(False)
-        self.status_label.setText("Error")
-        QMessageBox.critical(self, "Generation Error", f"Failed to generate: {error}")
 
     def _on_error(self, error):
         self.progress_bar.setVisible(False)
@@ -469,70 +542,26 @@ class SlidrWindow(QMainWindow):
         if row < len(self.edited_slides):
             slide = self.edited_slides[row]
             self.slide_editor.load_slide(slide)
-            # Load saved image
-            saved_url = slide.get("image_url")
-            if saved_url:
-                self.selected_image_url = saved_url
-                self.slide_editor.image_status.setText("Image loaded from slide")
-            else:
-                self.selected_image_url = None
-                self.slide_editor.image_status.setText("No image selected")
-
-    def _search_image(self):
-        """Search for image based on keywords"""
-        keywords = self.slide_editor.image_keywords_edit.text().strip()
-        if not keywords:
-            QMessageBox.warning(self, "No Keywords", "Enter keywords to search for images.")
-            return
-        
-        self.slide_editor.image_status.setText("Searching...")
-        QApplication.processEvents()
-        
-        results = self.image_search.search_unsplash(keywords, 6)
-        
-        if not results:
-            results = self.image_search._get_demo_images(keywords, 3)
-        
-        # Show results
-        if results and results[0].get("url"):
-            # Show first result
-            self.selected_image_url = results[0].get("url")
-            desc = results[0].get("description", keywords)
-            self.slide_editor.image_status.setText(f"✓ Selected: {desc[:40]}...")
-        else:
-            self.selected_image_url = None
-            # Show placeholder info
-            self.slide_editor.image_status.setText(f"Demo: {keywords} - Use image from online/paste URL")
 
     def _save_slide(self):
         current_row = self.slide_list.currentRow()
         if current_row < len(self.edited_slides):
             slide_data = self.slide_editor.get_slide_data()
             
-            # Save image URL - read directly from the input field
-            image_url = self.slide_editor.image_keywords_edit.text().strip()
-            
-            # Check if it looks like a URL
-            if image_url and ("http" in image_url or "." in image_url):
-                # It's a URL - save it
-                slide_data["image_url"] = image_url
-                self.slide_editor.image_status.setText("✅ Image URL saved!")
+            img_kw = slide_data.get("image_keywords", "")
+            if img_kw and "http" in img_kw:
+                slide_data["image_url"] = img_kw
             
             self.edited_slides[current_row] = slide_data
             
-            # Update list item
             slide = self.edited_slides[current_row]
             slide_type = slide.get("type", "content")
             title = slide.get("title", f"Slide {current_row+1}")
             
-            # Show image indicator
             img_indicator = " 📷" if slide.get("image_url") else ""
             self.slide_list.currentItem().setText(f"[{slide_type}] {title}{img_indicator}")
             
-            msg = "Slide changes saved!"
-            if slide.get("image_url"):
-                msg += " Image added!"
-            QMessageBox.information(self, "Saved", msg)
+            QMessageBox.information(self, "Saved", "Slide changes saved!")
 
     def _export(self):
         if not self.edited_slides:
@@ -541,20 +570,20 @@ class SlidrWindow(QMainWindow):
 
         slides = self.edited_slides
         
-        # Get template
         template = "minimal"
         for radio, key in self.template_radios.items():
             if radio.isChecked():
                 template = key
                 break
         
-        # Output path
         base_name = f"presentation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         output_dir = os.path.join(os.path.expanduser("~"), "Documents")
         
         exported = []
         
         try:
+            from slidr.exporters import PPTXExporter, PDFExporter, HTMLExporter
+            
             if self.check_pptx.isChecked():
                 output_path = os.path.join(output_dir, f"{base_name}.pptx")
                 PPTXExporter.export(slides, "Presentation", output_path, template)
@@ -642,7 +671,7 @@ class SlidrWindow(QMainWindow):
                 QProgressBar::chunk { background-color: #4A90D9; }
             """
             self.setStyleSheet(dark_stylesheet)
-            self.setWindowTitle("Slidr - AI Presentation Maker v2.4 🌙")
+            self.setWindowTitle("Slidr - AI Presentation Maker v3.0 🌙")
         else:
             light_stylesheet = """
                 QMainWindow { background-color: #F5F5F5; }
@@ -698,7 +727,7 @@ class SlidrWindow(QMainWindow):
                 QProgressBar::chunk { background-color: #4A90D9; }
             """
             self.setStyleSheet(light_stylesheet)
-            self.setWindowTitle("Slidr - AI Presentation Maker v2.4 ☀️")
+            self.setWindowTitle("Slidr - AI Presentation Maker v3.0 ☀️")
 
 
 def main():

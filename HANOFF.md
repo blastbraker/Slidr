@@ -6,7 +6,7 @@
 
 - **GitHub**: https://github.com/blastbraker/Slidr
 - **License**: MIT
-- **Current Version**: v2.x
+- **Current Version**: v3.0
 
 ---
 
@@ -39,19 +39,19 @@ python -m slidr.gui
 ```
 Slidr/
 ├── slidr/
-│   ├── gui.py              # Main PySide6 GUI application
-│   ├── config.py           # Configuration (OLLAMA_BASE_URL, UNSPLASH_ACCESS_KEY)
+│   ├── gui.py              # Main PySide6 GUI application v3
+│   ├── config.py           # Configuration + 10 slide types
 │   ├── image_search.py     # Unsplash image search integration
 │   ├── processors/
 │   │   └── file_processor.py   # PDF/DOCX text extraction
 │   ├── generator/
-│   │   └── ai_client.py      # Ollama AI client
+│   │   └── ai_client.py      # Ollama AI client v3 (auto-layout)
 │   ├── templates/
-│   │   └── builder.py        # PPTX template builder with 5 layouts
+│   │   └── builder.py        # PPTX template builder v3 (10 layouts)
 │   └── exporters/
 │       ├── pptx_exporter.py
 │       ├── pdf_exporter.py
-│       └── html_exporter.py
+│       └── html_exporter.py  # v3 with all layouts
 ├── templates/              # Built-in templates (future)
 ├── .gitignore
 ├── README.md
@@ -62,25 +62,32 @@ Slidr/
 
 ---
 
-## Features Implemented (v2)
+## Features Implemented (v3.0)
 
 | Feature | Status |
 |---------|--------|
 | Topic input | ✅ |
 | File input (PDF/DOCX) | ✅ |
 | Ollama AI integration | ✅ |
-| 5 Slide layouts | ✅ |
-| - title | ✅ |
-| - content | ✅ |
-| - bullets_image | ✅ |
-| - two_column | ✅ |
-| - divider | ✅ |
-| Rich content (title, subtitle, bullets, notes) | ✅ |
+| AI auto-selects layout type | ✅ |
+| 10 Slide layouts | ✅ |
+| Title slide | ✅ |
+| Content slide | ✅ |
+| Bullets + Image slide | ✅ |
+| Two Column slide | ✅ |
+| Divider slide | ✅ |
+| Quote slide | ✅ |
+| Statistic slide | ✅ |
+| Comparison slide | ✅ |
+| Timeline slide | ✅ |
+| Full Image slide | ✅ |
+| Rich content fields | ✅ |
 | Tab-based GUI | ✅ |
 | Slide editor | ✅ |
 | Layout picker per slide | ✅ |
 | Image keywords | ✅ |
 | Image URL pasting | ✅ |
+| Real image embedding (PPTX) | ✅ |
 | Dark/Light theme toggle | ✅ |
 | Export to PPTX | ✅ |
 | Export to PDF | ✅ |
@@ -91,28 +98,50 @@ Slidr/
 ## Key Files
 
 ### `slidr/gui.py`
-Main GUI application with:
+Main GUI application v3:
 - 3 tabs: Generate, Edit Slides, Export
+- Dynamic editor fields based on layout type
 - Theme toggle (dark/light)
-- Slide list and editor
-- Export functionality
+
+### `slidr/config.py`
+Configuration with 10 slide types:
+- SLIDE_TYPES dict with names and fields
+- Fields required per layout
 
 ### `slidr/generator/ai_client.py`
-Ollama AI client:
-- Generates slides from topic or text
-- Rich JSON output with type, title, subtitle, bullets, image_keywords
-- 5 slide types: title, content, bullets_image, two_column, divider
+Ollama AI client v3:
+- Auto-selects best layout for content
+- Generates all 10 layout types
+- Rich JSON output
 
 ### `slidr/templates/builder.py`
-PPTX template builder:
-- Creates presentations with 5 layout types
-- Professional styling with themes (minimal, modern, corporate)
-- Image placeholders
+PPTX template builder v3:
+- Creates presentations with 10 layout types
+- Real image embedding from URLs
+- Professional styling
 
 ### `slidr/image_search.py`
 Image search:
 - Unsplash API integration (needs API key)
 - Falls back to demo placeholders
+
+---
+
+## Slide Layouts
+
+### Standard Layouts (5)
+1. **title**: Title slide with subtitle
+2. **content**: Title + bullets
+3. **bullets_image**: Bullets + image placeholder
+4. **two_column**: Two column text
+5. **divider**: Section transition
+
+### New Layouts (v3) (5)
+6. **quote**: Big quote with author
+7. **statistic**: Large number with label
+8. **comparison**: Two-column pros/cons
+9. **timeline**: Chronological events
+10. **full_image**: Full-bleed image + caption
 
 ---
 
@@ -127,10 +156,9 @@ Edit `slidr/config.py`:
 
 ## Known Issues / TODO
 
-1. **Image embedding** - Currently shows text placeholders; real images not embedded in PPTX
-2. **Live preview** - No real-time slide preview in GUI
-3. **More templates** - Only 3 basic themes
-4. **Image search** - Needs API key for real Unsplash results
+1. ~~Image embedding~~ - ✅ Fixed in v3.0
+2. ~~More layouts~~ - ✅ Fixed in v3.0 (10 layouts)
+3. ~~Auto-layout selection~~ - ✅ Fixed in v3.0
 
 ---
 
@@ -145,6 +173,7 @@ Edit `slidr/config.py`:
 | HTML | Custom HTML/JS |
 | File processing | PyMuPDF, python-docx |
 | HTTP | requests |
+| Image download | requests + temp files |
 
 ---
 
@@ -153,16 +182,18 @@ Edit `slidr/config.py`:
 1. Run `python -m slidr.gui`
 2. Enter a topic (e.g., "History of Artificial Intelligence")
 3. Click "Generate Presentation"
-4. Go to "Edit Slides" tab - edit any slide
-5. Go to "Export" tab - choose format and export
-6. Check Documents folder for output
+4. AI auto-selects layouts (10 types available)
+5. Go to "Edit Slides" tab - edit any slide
+6. Change layout type - fields update dynamically
+7. Go to "Export" tab - choose format and export
+8. Check Documents folder for output
 
 ---
 
-## Next Steps (v3 Ideas)
+## Next Steps (v3.1 Ideas)
 
-- [ ] Embed real images in PPTX
-- [ ] Live slide preview
+- [ ] Live slide preview in editor
+- [ ] Charts (bar/pie) rendering
 - [ ] More built-in templates
 - [ ] Google Slides export
 - [ ] More AI backends (OpenAI, Anthropic)
@@ -170,13 +201,14 @@ Edit `slidr/config.py`:
 
 ---
 
-## Notes for Next AI
+## Notes
 
-- The project uses environment variables for API keys (never commit keys)
+- Project uses environment variables for API keys (never commit keys)
 - GUI uses PySide6 with Fusion style
 - AI calls are async via QThread to keep UI responsive
 - Templates use python-pptx for generating PowerPoint files
 - All slide data is JSON with standardized structure
+- v3: AI picks best layout, user can override
 
 ---
 
