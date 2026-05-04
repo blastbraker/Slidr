@@ -1,0 +1,82 @@
+Metadata-Version: 2.4
+Name: slidr
+Version: 0.1.0
+Summary: AI Presentation Maker - Create presentations from topics or documents
+Home-page: https://github.com/blastbraker/Slidr
+Author: Ali Bahar
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-python
+Dynamic: summary
+
+# Slidr - AI Presentation Maker
+
+Create professional presentations from topics or documents using AI. Supports PPTX, PDF, and web-based HTML output.
+
+## Features
+
+- **Multiple Input Methods**: Enter a topic directly or upload PDF/DOCX files
+- **AI-Powered**: Generate slide content using local Ollama AI
+- **Multiple Outputs**: Export to PPTX, PDF, and HTML formats
+- **Custom Templates**: Choose from 3 built-in themes or use your own
+- **100% Free**: Uses local Ollama AI - no API costs
+
+## Requirements
+
+- Python 3.8+
+- Ollama (installed locally)
+- AI Model: `llama3.2:3b`
+
+## Installation
+
+1. Install Ollama from [ollama.com](https://ollama.com)
+
+2. Pull the AI model:
+   ```bash
+   ollama pull llama3.2:3b
+   ```
+
+3. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Usage
+
+```bash
+python -m slidr.gui
+```
+
+## Project Structure
+
+```
+Slidr/
+â”œâ”€â”€ slidr/
+â”‚   â”œâ”€â”€ gui.py              # Main GUI application
+â”‚   â”œâ”€â”€ config.py          # Configuration settings
+â”‚   â”œâ”€â”€ processors/        # File extraction (PDF/DOCX)
+â”‚   â”œâ”€â”€ generator/         # AI content generation
+â”‚   â”œâ”€â”€ templates/         # Slide template system
+â”‚   â””â”€â”€ exporters/        # PPTX, PDF, HTML exporters
+â””â”€â”€ templates/            # Built-in slide templates
+```
+
+## License
+
+MIT License - See LICENSE file for details.
